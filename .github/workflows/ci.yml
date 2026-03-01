@@ -257,6 +257,35 @@ jobs:
           cd backend
           uv sync --dev
 
+      - name: Run database migrations
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/osint_test
+        run: |
+          cd backend
+          uv run alembic upgrade head
+
+      - name: Create RLS test user
+        run: |  # pragma: allowlist secret
+          PGPASSWORD=postgres psql -h localhost -U postgres -d osint_test <<EOF
+          -- Create osint_app user with NOBYPASSRLS for RLS testing
+          DO \$\$
+          BEGIN
+            IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'osint_app') THEN
+              CREATE ROLE osint_app WITH LOGIN PASSWORD 'osint_app' NOBYPASSRLS;
+            END IF;
+          END
+          \$\$;
+
+          -- Grant permissions on all tables
+          GRANT USAGE ON SCHEMA public TO osint_app;
+          GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO osint_app;
+          GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO osint_app;
+
+          -- Set default privileges for future tables
+          ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO osint_app;
+          ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO osint_app;
+          EOF
+
       - name: Run pytest
         env:
           DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/osint_test
