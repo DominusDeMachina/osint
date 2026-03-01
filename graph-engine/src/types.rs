@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 /// Types of entities that can exist in the investigation graph
-#[pyclass(eq, eq_int)]
+#[pyclass(eq, eq_int, from_py_object)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum EntityType {
     /// A person (individual)
@@ -44,7 +44,7 @@ impl EntityType {
 }
 
 /// Types of relationships between entities
-#[pyclass(eq, eq_int)]
+#[pyclass(eq, eq_int, from_py_object)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum RelationshipType {
     /// Person is employed by company
@@ -87,7 +87,7 @@ impl RelationshipType {
 }
 
 /// An entity node in the investigation graph
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Entity {
     /// Unique identifier for the entity
@@ -167,7 +167,7 @@ impl Entity {
 }
 
 /// An edge (relationship) in the investigation graph
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Edge {
     /// Source entity ID (internal graph index)
