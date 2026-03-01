@@ -243,10 +243,11 @@ jobs:
       - name: Install maturin
         run: pip install maturin
 
-      - name: Build graph-engine
+      - name: Build and install graph-engine
         run: |
           cd graph-engine
-          maturin develop
+          maturin build --release --out dist
+          pip install dist/*.whl
 
       - name: Install uv
         run: pip install uv
