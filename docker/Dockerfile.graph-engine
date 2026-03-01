@@ -6,7 +6,7 @@
 
 FROM python:3.14-slim-bookworm AS python-base
 
-FROM rust:1.85-slim-bookworm AS builder
+FROM rust:1.93-slim-bookworm AS builder
 
 # Copy Python 3.12 from python image
 COPY --from=python-base /usr/local /usr/local
