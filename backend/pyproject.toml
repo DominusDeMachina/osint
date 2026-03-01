@@ -20,6 +20,9 @@ dependencies = [
     "httpx>=0.26.0",
     "osint-graph-engine",
     "psycopg2-binary>=2.9.11",
+    "python-jose>=3.5.0",
+    "cryptography>=46.0.5",
+    "svix>=1.86.0",
 ]
 
 [project.optional-dependencies]
