@@ -67,7 +67,7 @@ repos:
           - pydantic
           - sqlmodel
           - alembic
-        args: [--ignore-missing-imports, --no-error-summary, --disable-error-code=call-arg, --disable-error-code=attr-defined]
+        args: [--ignore-missing-imports, --no-error-summary]
         files: ^backend/app/
         exclude: ^backend/(tests|alembic)/
 
