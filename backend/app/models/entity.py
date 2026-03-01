@@ -8,7 +8,7 @@ from enum import StrEnum
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
-from sqlalchemy import Column
+from sqlalchemy import Column, String
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, Relationship
 
@@ -57,7 +57,7 @@ class Entity(TenantModel, table=True):
 
     __tablename__ = "entities"
 
-    entity_type: EntityType = Field(index=True)
+    entity_type: EntityType = Field(sa_column=Column(String(50), index=True))
     name: str = Field(max_length=500, index=True)
     properties: dict[str, Any] = Field(
         default_factory=dict,

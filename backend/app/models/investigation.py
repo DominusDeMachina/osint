@@ -8,6 +8,7 @@ from enum import StrEnum
 from typing import TYPE_CHECKING
 from uuid import UUID
 
+from sqlalchemy import Column, String
 from sqlmodel import Field, Relationship
 
 from app.models.base import TenantModel
@@ -49,7 +50,10 @@ class Investigation(TenantModel, table=True):
 
     title: str = Field(max_length=255, index=True)
     description: str | None = Field(default=None, max_length=5000)
-    status: InvestigationStatus = Field(default=InvestigationStatus.active, index=True)
+    status: InvestigationStatus = Field(
+        default=InvestigationStatus.active,
+        sa_column=Column(String(50), index=True, default=InvestigationStatus.active),
+    )
     owner_id: UUID = Field(foreign_key="users.id", index=True)
 
     # Relationships

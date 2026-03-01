@@ -66,22 +66,14 @@ def upgrade() -> None:
                 WITH CHECK (tenant_id = get_current_tenant());
         """)
 
-    # Create superuser bypass policy for admin operations
-    # This allows the postgres superuser to access all data for maintenance
-    # Works with: standard PostgreSQL superuser, AWS RDS rds_superuser, or explicit bypass flag
+    # Create bypass policy for admin operations
+    # Only activates when app.bypass_rls is explicitly set to 'on'
+    # This allows maintenance operations while ensuring RLS is enforced by default
     for table in TENANT_SCOPED_TABLES:
         op.execute(f"""
             CREATE POLICY superuser_bypass_{table} ON {table}
-                USING (
-                    current_setting('is_superuser', true) = 'on'
-                    OR current_setting('role', true) = 'rds_superuser'
-                    OR current_setting('app.bypass_rls', true) = 'on'
-                )
-                WITH CHECK (
-                    current_setting('is_superuser', true) = 'on'
-                    OR current_setting('role', true) = 'rds_superuser'
-                    OR current_setting('app.bypass_rls', true) = 'on'
-                );
+                USING (current_setting('app.bypass_rls', true) = 'on')
+                WITH CHECK (current_setting('app.bypass_rls', true) = 'on');
         """)
 
 

@@ -8,7 +8,7 @@ from enum import StrEnum
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
-from sqlalchemy import Column
+from sqlalchemy import Column, String
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, Relationship
 
@@ -56,7 +56,7 @@ class EntityEdge(TenantModel, table=True):
 
     source_id: UUID = Field(foreign_key="entities.id", index=True)
     target_id: UUID = Field(foreign_key="entities.id", index=True)
-    edge_type: EdgeType = Field(index=True)
+    edge_type: EdgeType = Field(sa_column=Column(String(50), index=True))
     confidence: float = Field(default=1.0, ge=0.0, le=1.0)
     properties: dict[str, Any] = Field(
         default_factory=dict,

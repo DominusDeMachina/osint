@@ -11,7 +11,7 @@ from enum import StrEnum
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import Column
+from sqlalchemy import Column, String
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field
 
@@ -66,7 +66,7 @@ class AuditLog(TenantModel, table=True):
 
     __tablename__ = "audit_logs"
 
-    action_type: ActionType = Field(index=True)
+    action_type: ActionType = Field(sa_column=Column(String(50), index=True))
     actor_id: UUID = Field(foreign_key="users.id", index=True)
     target_type: str = Field(max_length=100, index=True)
     target_id: UUID | None = Field(default=None, index=True)

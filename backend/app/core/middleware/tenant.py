@@ -35,9 +35,16 @@ async def set_tenant_context(session: AsyncSession, tenant_id: str) -> None:
             await set_tenant_context(session, str(tenant_id))
             # Now all queries are automatically filtered by tenant_id
     """
-    await session.execute(
-        text("SET LOCAL app.current_tenant = :tenant_id"), {"tenant_id": tenant_id}
-    )
+    # Validate tenant_id is a valid UUID format to prevent SQL injection
+    # (UUIDs can only contain hex chars and dashes)
+    try:
+        UUID(tenant_id)  # Validates format
+    except ValueError as e:
+        raise ValueError(f"Invalid tenant_id format: {tenant_id}") from e
+
+    # SET commands don't support bound parameters in asyncpg, so we use
+    # string formatting after validating the UUID format
+    await session.execute(text(f"SET LOCAL app.current_tenant = '{tenant_id}'"))
 
 
 async def get_tenant_db(request: Request) -> AsyncGenerator[AsyncSession, None]:

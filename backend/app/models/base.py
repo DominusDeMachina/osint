@@ -14,6 +14,11 @@ from sqlalchemy import text
 from sqlmodel import Field, SQLModel
 
 
+def utc_now() -> datetime:
+    """Return current UTC time as timezone-naive datetime for PostgreSQL TIMESTAMP."""
+    return datetime.now(UTC).replace(tzinfo=None)
+
+
 class TimestampMixin(SQLModel):
     """Mixin for created_at and updated_at timestamps.
 
@@ -21,14 +26,14 @@ class TimestampMixin(SQLModel):
     """
 
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC),
+        default_factory=utc_now,
         sa_column_kwargs={"server_default": text("CURRENT_TIMESTAMP")},
     )
     updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC),
+        default_factory=utc_now,
         sa_column_kwargs={
             "server_default": text("CURRENT_TIMESTAMP"),
-            "onupdate": lambda: datetime.now(UTC),
+            "onupdate": utc_now,
         },
     )
 

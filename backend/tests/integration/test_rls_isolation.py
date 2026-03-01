@@ -40,9 +40,9 @@ from app.models import (
 pytestmark = pytest.mark.integration
 
 
-@pytest.fixture(scope="module")
-async def test_engine():
-    """Create test database engine."""
+@pytest.fixture
+async def admin_engine():
+    """Create admin database engine (superuser) for test setup/teardown."""
     engine = create_async_engine(
         settings.database_url,
         echo=False,
@@ -51,9 +51,33 @@ async def test_engine():
     await engine.dispose()
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
+async def admin_session_factory(admin_engine):
+    """Create admin async session factory for setup/teardown."""
+    return async_sessionmaker(
+        admin_engine,
+        class_=AsyncSession,
+        expire_on_commit=False,
+    )
+
+
+@pytest.fixture
+async def test_engine():
+    """Create test database engine with non-superuser role for RLS testing."""
+    # Use osint_app user which has NOBYPASSRLS to properly test RLS
+    # The postgres superuser has BYPASSRLS which ignores all RLS policies
+    rls_database_url = settings.database_url.replace("postgres:postgres", "osint_app:osint_app")
+    engine = create_async_engine(
+        rls_database_url,
+        echo=False,
+    )
+    yield engine
+    await engine.dispose()
+
+
+@pytest.fixture
 async def session_factory(test_engine):
-    """Create async session factory."""
+    """Create async session factory for RLS testing."""
     return async_sessionmaker(
         test_engine,
         class_=AsyncSession,
@@ -62,10 +86,10 @@ async def session_factory(test_engine):
 
 
 @pytest.fixture
-async def tenant_a(session_factory):
+async def tenant_a(admin_session_factory):
     """Create tenant A for testing."""
-    async with session_factory() as session:
-        tenant = Tenant(id=uuid4(), name="Tenant A", slug="tenant-a")
+    async with admin_session_factory() as session:
+        tenant = Tenant(id=uuid4(), name="Tenant A", slug=f"tenant-a-{uuid4()}")
         session.add(tenant)
         await session.commit()
         await session.refresh(tenant)
@@ -76,10 +100,10 @@ async def tenant_a(session_factory):
 
 
 @pytest.fixture
-async def tenant_b(session_factory):
+async def tenant_b(admin_session_factory):
     """Create tenant B for testing."""
-    async with session_factory() as session:
-        tenant = Tenant(id=uuid4(), name="Tenant B", slug="tenant-b")
+    async with admin_session_factory() as session:
+        tenant = Tenant(id=uuid4(), name="Tenant B", slug=f"tenant-b-{uuid4()}")
         session.add(tenant)
         await session.commit()
         await session.refresh(tenant)
@@ -90,9 +114,9 @@ async def tenant_b(session_factory):
 
 
 @pytest.fixture
-async def user_a(session_factory, tenant_a):
+async def user_a(admin_session_factory, tenant_a):
     """Create user in tenant A."""
-    async with session_factory() as session:
+    async with admin_session_factory() as session:
         user = User(
             id=uuid4(),
             clerk_id=f"clerk_{uuid4()}",
@@ -116,12 +140,28 @@ async def user_a(session_factory, tenant_a):
         # Cleanup handled by cascade
 
 
+class TenantSession:
+    """Wrapper around AsyncSession that auto-sets tenant context after commits."""
+
+    def __init__(self, session: AsyncSession, tenant_id: str):
+        self._session = session
+        self._tenant_id = tenant_id
+
+    def __getattr__(self, name):
+        return getattr(self._session, name)
+
+    async def commit(self):
+        await self._session.commit()
+        # Re-set tenant context after commit since SET LOCAL is transaction-scoped
+        await set_tenant_context(self._session, self._tenant_id)
+
+
 @pytest.fixture
 async def tenant_a_session(session_factory, tenant_a):
     """Session with tenant A context set."""
     async with session_factory() as session:
         await set_tenant_context(session, str(tenant_a.id))
-        yield session
+        yield TenantSession(session, str(tenant_a.id))
 
 
 @pytest.fixture
@@ -129,7 +169,7 @@ async def tenant_b_session(session_factory, tenant_b):
     """Session with tenant B context set."""
     async with session_factory() as session:
         await set_tenant_context(session, str(tenant_b.id))
-        yield session
+        yield TenantSession(session, str(tenant_b.id))
 
 
 class TestTenantIsolation:
@@ -162,8 +202,8 @@ class TestTenantIsolation:
         await tenant_b_session.commit()
 
         # Query from tenant A - should return empty
-        result = await tenant_a_session.exec(select(Investigation))
-        investigations = result.all()
+        result = await tenant_a_session.execute(select(Investigation))
+        investigations = result.scalars().all()
 
         assert len(investigations) == 0, "Tenant A should not see Tenant B investigations"
 
@@ -196,8 +236,8 @@ class TestTenantIsolation:
         await tenant_a_session.commit()
 
         # Query from tenant A - should return the investigation
-        result = await tenant_a_session.exec(select(Investigation))
-        investigations = result.all()
+        result = await tenant_a_session.execute(select(Investigation))
+        investigations = result.scalars().all()
 
         assert len(investigations) == 1
         assert investigations[0].title == "Tenant A Investigation"
@@ -242,10 +282,10 @@ class TestTenantIsolation:
         assert result.rowcount == 0
 
         # Verify original data is unchanged
-        result = await tenant_b_session.exec(
+        result = await tenant_b_session.execute(
             select(Investigation).where(Investigation.id == inv_b.id)
         )
-        inv = result.one()
+        inv = result.scalars().one()
         assert inv.title == "Original Title"
 
         # Cleanup
@@ -288,10 +328,10 @@ class TestTenantIsolation:
         assert result.rowcount == 0
 
         # Verify data still exists in tenant B
-        result = await tenant_b_session.exec(
+        result = await tenant_b_session.execute(
             select(Investigation).where(Investigation.id == inv_b.id)
         )
-        inv = result.one()
+        inv = result.scalars().one()
         assert inv.title == "Cannot Delete Me"
 
         # Cleanup
@@ -333,9 +373,10 @@ class TestInsertValidation:
                 )
                 await session.commit()
 
-            # Verify it's a constraint violation
+            # Verify it's either a constraint violation or RLS policy violation
+            error_msg = str(exc_info.value).lower()
             assert (
-                "tenant_id" in str(exc_info.value).lower() or "null" in str(exc_info.value).lower()
+                "tenant_id" in error_msg or "null" in error_msg or "row-level security" in error_msg
             )
 
 
@@ -361,8 +402,8 @@ class TestEntityIsolation:
         await tenant_b_session.commit()
 
         # Query from tenant A
-        result = await tenant_a_session.exec(select(Entity))
-        entities = result.all()
+        result = await tenant_a_session.execute(select(Entity))
+        entities = result.scalars().all()
 
         assert len(entities) == 0, "Tenant A should not see Tenant B entities"
 
@@ -405,8 +446,8 @@ class TestAuditLogIsolation:
         await tenant_b_session.commit()
 
         # Query from tenant A - should return empty
-        result = await tenant_a_session.exec(select(AuditLog))
-        logs = result.all()
+        result = await tenant_a_session.execute(select(AuditLog))
+        logs = result.scalars().all()
 
         assert len(logs) == 0, "Tenant A should not see Tenant B audit logs"
 

@@ -8,7 +8,7 @@ from enum import StrEnum
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
-from sqlalchemy import UniqueConstraint
+from sqlalchemy import Column, String, UniqueConstraint
 from sqlmodel import Field, Relationship
 
 from app.models.base import TimestampMixin
@@ -79,7 +79,10 @@ class TenantMembership(TimestampMixin, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     user_id: UUID = Field(foreign_key="users.id", index=True)
     tenant_id: UUID = Field(foreign_key="tenants.id", index=True)
-    role: UserRole = Field(default=UserRole.viewer)
+    role: UserRole = Field(
+        default=UserRole.viewer,
+        sa_column=Column(String(50), default=UserRole.viewer),
+    )
 
     # Relationships
     user: "User" = Relationship(back_populates="memberships")
