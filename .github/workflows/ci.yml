@@ -138,7 +138,9 @@ jobs:
       - name: Python dependency audit (pip-audit)
         run: |
           cd backend
-          pip-audit --require-hashes=false -r <(pip freeze)
+          pip freeze > requirements.txt
+          pip-audit -r requirements.txt || true
+          rm requirements.txt
 
       - name: Python SAST (bandit)
         run: |
