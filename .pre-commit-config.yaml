@@ -34,7 +34,6 @@ repos:
       - id: check-yaml
         args: [--allow-multiple-documents]
       - id: check-json
-        exclude: tsconfig.*\.json$  # tsconfig uses JSONC with comments
       - id: check-toml
       - id: check-added-large-files
         args: ['--maxkb=1000']

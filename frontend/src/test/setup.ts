@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom'
-import { vi } from 'vitest'
+import { vi, beforeEach } from 'vitest'
 
 // Mock fetch for tests with proper typing
 const mockFetch = vi.fn()
