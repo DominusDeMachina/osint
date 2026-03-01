@@ -102,3 +102,12 @@ ignore_missing_imports = true
 [[tool.mypy.overrides]]
 module = "redis.*"
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "sqlmodel.*"
+ignore_missing_imports = true
+
+# SQLModel uses metaclass magic for table=True that mypy doesn't understand
+[[tool.mypy.overrides]]
+module = "app.models.*"
+disable_error_code = ["call-arg"]

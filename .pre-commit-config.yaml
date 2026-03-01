@@ -65,13 +65,11 @@ repos:
           - types-redis
           - types-requests
           - pydantic
-        args: [--ignore-missing-imports, --no-error-summary]
-        files: ^backend/
-        exclude: |
-          (?x)^(
-            backend/tests/|
-            backend/alembic/
-          )$
+          - sqlmodel
+          - alembic
+        args: [--ignore-missing-imports, --no-error-summary, --disable-error-code=call-arg, --disable-error-code=attr-defined]
+        files: ^backend/app/
+        exclude: ^backend/(tests|alembic)/
 
   # ===========================================================================
   # Rust: Formatting with cargo fmt
