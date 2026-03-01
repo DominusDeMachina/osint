@@ -9,6 +9,13 @@ from app.core.database import get_session
 from app.main import app
 
 
+def pytest_configure(config):
+    """Configure custom pytest markers."""
+    config.addinivalue_line(
+        "markers", "integration: marks tests as integration tests (require database)"
+    )
+
+
 # Use in-memory SQLite for testing
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 

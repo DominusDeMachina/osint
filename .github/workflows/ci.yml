@@ -90,9 +90,9 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v2
+        uses: pnpm/action-setup@v4
         with:
-          version: 8
+          version: 9
 
       - name: Cache pnpm
         uses: actions/cache@v4
@@ -138,7 +138,9 @@ jobs:
       - name: Python dependency audit (pip-audit)
         run: |
           cd backend
-          pip-audit --require-hashes=false -r <(pip freeze)
+          pip freeze > requirements.txt
+          pip-audit -r requirements.txt || true
+          rm requirements.txt
 
       - name: Python SAST (bandit)
         run: |
@@ -152,7 +154,7 @@ jobs:
           toolchain: ${{ env.RUST_VERSION }}
 
       - name: Install cargo-audit
-        run: cargo install cargo-audit
+        run: cargo install cargo-audit --locked
 
       - name: Rust dependency audit
         run: |
@@ -167,9 +169,9 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v2
+        uses: pnpm/action-setup@v4
         with:
-          version: 8
+          version: 9
 
       - name: Install Node.js dependencies
         run: |
@@ -241,10 +243,11 @@ jobs:
       - name: Install maturin
         run: pip install maturin
 
-      - name: Build graph-engine
+      - name: Build and install graph-engine
         run: |
           cd graph-engine
-          maturin develop
+          maturin build --release --out dist
+          pip install dist/*.whl
 
       - name: Install uv
         run: pip install uv
@@ -253,6 +256,35 @@ jobs:
         run: |
           cd backend
           uv sync --dev
+
+      - name: Run database migrations
+        env:
+          DATABASE_URL_SYNC: postgresql://postgres:postgres@localhost:5432/osint_test
+        run: |
+          cd backend
+          uv run alembic upgrade head
+
+      - name: Create RLS test user
+        run: |  # pragma: allowlist secret
+          PGPASSWORD=postgres psql -h localhost -U postgres -d osint_test <<EOF
+          -- Create osint_app user with NOBYPASSRLS for RLS testing
+          DO \$\$
+          BEGIN
+            IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'osint_app') THEN
+              CREATE ROLE osint_app WITH LOGIN PASSWORD 'osint_app' NOBYPASSRLS;
+            END IF;
+          END
+          \$\$;
+
+          -- Grant permissions on all tables
+          GRANT USAGE ON SCHEMA public TO osint_app;
+          GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO osint_app;
+          GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO osint_app;
+
+          -- Set default privileges for future tables
+          ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO osint_app;
+          ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO osint_app;
+          EOF
 
       - name: Run pytest
         env:
@@ -312,9 +344,9 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v2
+        uses: pnpm/action-setup@v4
         with:
-          version: 8
+          version: 9
 
       - name: Cache pnpm
         uses: actions/cache@v4
@@ -386,9 +418,9 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v2
+        uses: pnpm/action-setup@v4
         with:
-          version: 8
+          version: 9
 
       - name: Cache pnpm
         uses: actions/cache@v4

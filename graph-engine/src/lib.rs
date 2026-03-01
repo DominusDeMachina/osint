@@ -37,7 +37,7 @@ mod tests {
     #[test]
     fn test_add_entity() {
         let mut engine = GraphEngine::new();
-        let entity = Entity::new("test-id", EntityType::Person, "John Doe");
+        let entity = Entity::new("test-id", EntityType::Person, "John Doe", None, 1.0);
         let node_id = engine.add_entity(entity);
         assert!(node_id.is_some());
         assert_eq!(engine.node_count(), 1);
@@ -47,13 +47,19 @@ mod tests {
     fn test_add_relationship() {
         let mut engine = GraphEngine::new();
 
-        let person = Entity::new("person-1", EntityType::Person, "John Doe");
-        let company = Entity::new("company-1", EntityType::Company, "Acme Corp");
+        let person = Entity::new("person-1", EntityType::Person, "John Doe", None, 1.0);
+        let company = Entity::new("company-1", EntityType::Company, "Acme Corp", None, 1.0);
 
         let person_id = engine.add_entity(person).unwrap();
         let company_id = engine.add_entity(company).unwrap();
 
-        let edge = Edge::new(person_id, company_id, RelationshipType::EmployedBy);
+        let edge = Edge::new(
+            person_id,
+            company_id,
+            RelationshipType::EmployedBy,
+            1.0,
+            None,
+        );
         let edge_id = engine.add_relationship(edge);
 
         assert!(edge_id.is_some());

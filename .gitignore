@@ -132,6 +132,9 @@ frontend/dist/
 frontend/build/
 *.tsbuildinfo
 
+# Keep frontend src/lib (negates Python lib/ pattern above)
+!frontend/src/lib/
+
 # Testing
 frontend/coverage/
 

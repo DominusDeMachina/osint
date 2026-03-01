@@ -57,6 +57,9 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     log_format: str = "json"
 
+    # Audit
+    audit_hmac_secret: str = "change-this-secret-in-production"
+
 
 @lru_cache
 def get_settings() -> Settings:
