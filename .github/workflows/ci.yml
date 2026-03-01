@@ -259,7 +259,7 @@ jobs:
 
       - name: Run database migrations
         env:
-          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/osint_test
+          DATABASE_URL_SYNC: postgresql://postgres:postgres@localhost:5432/osint_test
         run: |
           cd backend
           uv run alembic upgrade head
