@@ -1,0 +1,273 @@
+# =============================================================================
+# OSINT Platform .gitignore
+# =============================================================================
+
+# =============================================================================
+# Security - NEVER commit these (CRITICAL)
+# =============================================================================
+.env
+.env.local
+.env.*.local
+.env.production
+.env.staging
+!.env.example
+
+# Private keys and certificates
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+
+# SSH keys
+id_rsa
+id_rsa.pub
+id_ed25519
+id_ed25519.pub
+
+# AWS credentials
+.aws/credentials
+credentials.json
+
+# =============================================================================
+# Python
+# =============================================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# Translations
+*.mo
+*.pot
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Ruff
+.ruff_cache/
+
+# uv
+.uv/
+uv.lock
+
+# =============================================================================
+# Rust
+# =============================================================================
+/target/
+graph-engine/target/
+**/*.rs.bk
+Cargo.lock
+# Note: We DO commit Cargo.lock for the graph-engine as it's an application
+
+# =============================================================================
+# Node.js / Frontend
+# =============================================================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+
+# Build outputs
+frontend/dist/
+frontend/build/
+*.tsbuildinfo
+
+# Testing
+frontend/coverage/
+
+# Vite
+*.local
+.vite/
+
+# =============================================================================
+# IDE and Editors
+# =============================================================================
+# VSCode - keep settings, ignore personal
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/tasks.json
+!.vscode/launch.json
+
+# JetBrains IDEs
+.idea/
+*.iml
+*.iws
+*.ipr
+.idea/**/workspace.xml
+.idea/**/tasks.xml
+.idea/**/usage.statistics.xml
+.idea/**/dictionaries
+.idea/**/shelf
+.idea/**/dataSources/
+.idea/**/dataSources.ids
+.idea/**/dataSources.local.xml
+.idea/**/sqlDataSources.xml
+.idea/**/dynamic.xml
+.idea/**/uiDesigner.xml
+.idea/**/dbnavigator.xml
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# Sublime Text
+*.sublime-workspace
+*.sublime-project
+
+# =============================================================================
+# Operating System
+# =============================================================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# =============================================================================
+# Docker
+# =============================================================================
+# Docker volumes (if stored locally)
+docker/data/
+.docker/
+
+# =============================================================================
+# Project Specific
+# =============================================================================
+# Generated API clients
+frontend/src/api/generated/
+
+# Logs
+logs/
+*.log
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+
+# Database files (SQLite for testing)
+*.db
+*.sqlite
+*.sqlite3
+
+# BMAD artifacts (development planning)
+_bmad-output/
+!_bmad-output/.gitkeep
+
+# Draft documentation
+draft-docs/
+
+# =============================================================================
+# Testing
+# =============================================================================
+# Playwright
+playwright-report/
+playwright/.cache/
+test-results/
+
+# =============================================================================
+# Misc
+# =============================================================================
+# Thumbnails
+._*
+
+# Archives
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
+# Backup files
+*.bak
+*.backup

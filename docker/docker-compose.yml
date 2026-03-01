@@ -1,0 +1,100 @@
+# =============================================================================
+# OSINT Platform - Local Development Services
+# =============================================================================
+# Start all services: docker compose up -d
+# Check status: docker compose ps
+# View logs: docker compose logs -f
+# Stop services: docker compose down
+# =============================================================================
+
+services:
+  # ===========================================================================
+  # PostgreSQL Database
+  # ===========================================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: osint-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: osint
+    ports:
+      - "127.0.0.1:5432:5432"  # Localhost only for security
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d osint"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - osint-network
+    restart: unless-stopped
+
+  # ===========================================================================
+  # Redis Cache & Message Broker
+  # ===========================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: osint-redis
+    ports:
+      - "127.0.0.1:6379:6379"  # Localhost only for security
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    networks:
+      - osint-network
+    restart: unless-stopped
+
+  # ===========================================================================
+  # Celery Worker (Background Tasks)
+  # ===========================================================================
+  celery:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.backend
+    container_name: osint-celery
+    command: celery -A app.tasks.celery_app worker --loglevel=info
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/osint
+      - DATABASE_URL_SYNC=postgresql://postgres:postgres@postgres:5432/osint
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A app.tasks.celery_app inspect ping -d celery@$$HOSTNAME || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - osint-network
+    restart: unless-stopped
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  postgres_data:
+    name: osint_postgres_data
+  redis_data:
+    name: osint_redis_data
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  osint-network:
+    name: osint-network
+    driver: bridge

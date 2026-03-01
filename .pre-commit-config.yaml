@@ -1,0 +1,127 @@
+# =============================================================================
+# OSINT Platform Pre-commit Configuration
+# =============================================================================
+# Install hooks: pre-commit install
+# Run manually: pre-commit run --all-files
+# =============================================================================
+
+repos:
+  # ===========================================================================
+  # Security: Detect secrets FIRST before any other checks
+  # ===========================================================================
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        args: ['--baseline', '.secrets.baseline']
+        exclude: |
+          (?x)^(
+            .*\.lock|
+            pnpm-lock\.yaml|
+            package-lock\.json|
+            Cargo\.lock
+          )$
+
+  # ===========================================================================
+  # General file checks
+  # ===========================================================================
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+      - id: end-of-file-fixer
+      - id: check-yaml
+        args: [--allow-multiple-documents]
+      - id: check-json
+        exclude: tsconfig.*\.json$  # tsconfig uses JSONC with comments
+      - id: check-toml
+      - id: check-added-large-files
+        args: ['--maxkb=1000']
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: mixed-line-ending
+        args: ['--fix=lf']
+
+  # ===========================================================================
+  # Python: Ruff (linting + formatting)
+  # ===========================================================================
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.4
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+        types_or: [python, pyi]
+      - id: ruff-format
+        types_or: [python, pyi]
+
+  # ===========================================================================
+  # Python: Type checking with mypy
+  # ===========================================================================
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.19.1
+    hooks:
+      - id: mypy
+        additional_dependencies:
+          - types-redis
+          - types-requests
+          - pydantic
+        args: [--ignore-missing-imports, --no-error-summary]
+        files: ^backend/
+        exclude: |
+          (?x)^(
+            backend/tests/|
+            backend/alembic/
+          )$
+
+  # ===========================================================================
+  # Rust: Formatting with cargo fmt
+  # ===========================================================================
+  - repo: local
+    hooks:
+      - id: cargo-fmt
+        name: cargo fmt
+        description: Format Rust code with cargo fmt
+        entry: bash -c 'cd graph-engine && cargo fmt --all -- --check'
+        language: system
+        types: [rust]
+        pass_filenames: false
+
+      - id: cargo-clippy
+        name: cargo clippy
+        description: Lint Rust code with clippy
+        entry: bash -c 'cd graph-engine && cargo clippy -- -D warnings'
+        language: system
+        types: [rust]
+        pass_filenames: false
+
+  # ===========================================================================
+  # TypeScript/React: ESLint
+  # ===========================================================================
+  - repo: local
+    hooks:
+      - id: eslint
+        name: eslint
+        description: Lint TypeScript/React code
+        entry: bash -c 'cd frontend && pnpm lint'
+        language: system
+        types_or: [javascript, jsx, ts, tsx]
+        pass_filenames: false
+
+      - id: prettier
+        name: prettier
+        description: Format TypeScript/React code
+        entry: bash -c 'cd frontend && pnpm format:check'
+        language: system
+        types_or: [javascript, jsx, ts, tsx, json, css, scss, html, markdown]
+        pass_filenames: false
+
+# ===========================================================================
+# Configuration
+# ===========================================================================
+default_language_version:
+  python: python3.12
+
+# Skip hooks in CI if needed
+ci:
+  skip: [cargo-fmt, cargo-clippy, eslint, prettier]

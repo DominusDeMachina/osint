@@ -1,0 +1,39 @@
+# =============================================================================
+# OSINT Platform - Graph Engine Dockerfile (Rust build)
+# =============================================================================
+# This Dockerfile builds the Rust graph-engine wheel for distribution
+# =============================================================================
+
+FROM python:3.12-slim-bookworm AS python-base
+
+FROM rust:1.85-slim-bookworm AS builder
+
+# Copy Python 3.12 from python image
+COPY --from=python-base /usr/local /usr/local
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libffi-dev \
+    pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install maturin
+RUN pip install maturin
+
+WORKDIR /app
+
+# Copy source files
+COPY graph-engine/Cargo.toml graph-engine/Cargo.lock* ./
+COPY graph-engine/src ./src
+COPY graph-engine/pyproject.toml ./
+COPY graph-engine/README.md ./
+
+# Build the wheel for Python 3.12
+RUN maturin build --release --out dist --interpreter python3.12
+
+# -----------------------------------------------------------------------------
+# Final stage: Export the wheel
+# -----------------------------------------------------------------------------
+FROM scratch AS export
+
+COPY --from=builder /app/dist/*.whl /

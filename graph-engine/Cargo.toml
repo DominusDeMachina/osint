@@ -1,0 +1,45 @@
+[package]
+name = "osint_graph_engine"
+version = "0.1.0"
+edition = "2021"
+authors = ["OSINT Platform Team"]
+description = "High-performance graph processing engine for OSINT investigations"
+license = "MIT"
+repository = "https://github.com/your-org/osint-platform"
+
+[lib]
+name = "osint_graph_engine"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# Python bindings
+pyo3 = { version = "0.22", features = ["extension-module"] }
+
+# Graph processing
+petgraph = "0.6"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# UUID handling
+uuid = { version = "1.0", features = ["v4", "serde"] }
+
+# Error handling
+thiserror = "1.0"
+
+# Logging
+log = "0.4"
+
+[dev-dependencies]
+# Testing utilities
+pretty_assertions = "1.4"
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = 3
+
+[profile.dev]
+opt-level = 0
+debug = true

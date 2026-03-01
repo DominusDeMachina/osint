@@ -1,0 +1,18 @@
+{
+  "recommendations": [
+    "charliermarsh.ruff",
+    "ms-python.python",
+    "ms-python.vscode-pylance",
+    "rust-lang.rust-analyzer",
+    "esbenp.prettier-vscode",
+    "dbaeumer.vscode-eslint",
+    "bradlc.vscode-tailwindcss",
+    "ms-azuretools.vscode-docker",
+    "tamasfe.even-better-toml",
+    "redhat.vscode-yaml",
+    "mikestead.dotenv",
+    "eamodio.gitlens",
+    "usernamehw.errorlens"
+  ],
+  "unwantedRecommendations": []
+}

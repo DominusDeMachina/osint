@@ -1,0 +1,97 @@
+# =============================================================================
+# OSINT Platform - Backend Dockerfile (Multi-stage build)
+# =============================================================================
+# This Dockerfile builds the Python backend with Rust graph-engine
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Stage 1: Build graph-engine (Rust) with Python 3.12
+# -----------------------------------------------------------------------------
+FROM python:3.12-slim-bookworm AS python-base
+
+FROM rust:1.85-slim-bookworm AS rust-builder
+
+# Copy Python 3.12 from python image
+COPY --from=python-base /usr/local /usr/local
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libffi-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app/graph-engine
+
+# Copy graph-engine source
+COPY graph-engine/Cargo.toml graph-engine/Cargo.lock* ./
+COPY graph-engine/src ./src
+COPY graph-engine/pyproject.toml ./
+COPY graph-engine/README.md ./
+
+# Build the wheel for Python 3.12
+RUN pip install maturin && \
+    maturin build --release --out dist --interpreter python3.12
+
+# -----------------------------------------------------------------------------
+# Stage 2: Build Python application
+# -----------------------------------------------------------------------------
+FROM python:3.12-slim-bookworm AS python-builder
+
+# Install uv
+RUN pip install uv
+
+WORKDIR /app
+
+# Copy backend requirements
+COPY backend/pyproject.toml ./
+COPY backend/README.md ./
+
+# Copy graph-engine wheel from rust builder
+COPY --from=rust-builder /app/graph-engine/dist/*.whl /tmp/
+
+# Install dependencies (--no-sources to skip local path in tool.uv.sources)
+RUN uv pip install --system /tmp/*.whl && \
+    uv pip install --system --no-sources -e .
+
+# Copy application source
+COPY backend/app ./app
+COPY backend/alembic.ini ./
+COPY backend/alembic ./alembic
+
+# -----------------------------------------------------------------------------
+# Stage 3: Production image
+# -----------------------------------------------------------------------------
+FROM python:3.12-slim-bookworm AS production
+
+# Create non-root user for security
+RUN groupadd --gid 1000 appgroup && \
+    useradd --uid 1000 --gid appgroup --shell /bin/bash --create-home appuser
+
+WORKDIR /app
+
+# Install runtime dependencies only
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq5 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy installed packages from builder
+COPY --from=python-builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=python-builder /usr/local/bin /usr/local/bin
+
+# Copy application
+COPY --from=python-builder /app .
+
+# Change ownership to non-root user
+RUN chown -R appuser:appgroup /app
+
+# Switch to non-root user
+USER appuser
+
+# Expose port
+EXPOSE 8000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
+
+# Run the application
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
