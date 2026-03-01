@@ -7,6 +7,7 @@ Caches JWKS keys with TTL to minimize external requests.
 import threading
 import time
 from dataclasses import dataclass
+from typing import Any
 
 import httpx
 from jose import JWTError, jwt
@@ -30,12 +31,12 @@ class JWKSCache:
     """Thread-safe cache for JWKS keys with TTL."""
 
     def __init__(self, ttl_seconds: int = 3600):
-        self._keys: dict | None = None
+        self._keys: dict[str, Any] | None = None
         self._fetched_at: float = 0
         self._ttl = ttl_seconds
         self._lock = threading.Lock()
 
-    def get_keys(self, issuer: str) -> dict:
+    def get_keys(self, issuer: str) -> dict[str, Any]:
         """Get JWKS keys, fetching from Clerk if cache expired.
 
         Thread-safe: uses lock to prevent concurrent refresh race conditions.
@@ -55,14 +56,15 @@ class JWKSCache:
 
             return self._keys
 
-    def _fetch_jwks(self, issuer: str) -> dict:
+    def _fetch_jwks(self, issuer: str) -> dict[str, Any]:
         """Fetch JWKS from Clerk's well-known endpoint."""
         jwks_url = f"{issuer}/.well-known/jwks.json"
 
         try:
             response = httpx.get(jwks_url, timeout=10.0)
             response.raise_for_status()
-            return response.json()
+            result: dict[str, Any] = response.json()
+            return result
         except httpx.HTTPError as e:
             raise ValueError(f"Failed to fetch JWKS from {jwks_url}: {e}") from e
 

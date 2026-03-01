@@ -51,7 +51,7 @@ class ClerkWebhookPayload(BaseModel):
     data: dict[str, Any]
 
 
-def verify_webhook(payload: bytes, headers: dict[str, str]) -> dict:
+def verify_webhook(payload: bytes, headers: dict[str, str]) -> dict[str, Any]:
     """Verify Clerk webhook signature using Svix.
 
     Args:
@@ -74,7 +74,8 @@ def verify_webhook(payload: bytes, headers: dict[str, str]) -> dict:
 
     try:
         wh = Webhook(webhook_secret)
-        return wh.verify(payload, headers)
+        result: dict[str, Any] = wh.verify(payload, headers)
+        return result
     except WebhookVerificationError as e:
         logger.warning(f"Webhook verification failed: {e}")
         raise HTTPException(
