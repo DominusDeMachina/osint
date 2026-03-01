@@ -375,7 +375,7 @@ jobs:
           maturin build --release --out dist
 
       - name: Upload graph-engine wheel
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: graph-engine-wheel
           path: graph-engine/dist/*.whl
@@ -408,7 +408,7 @@ jobs:
           pnpm build
 
       - name: Upload frontend build
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: frontend-dist
           path: frontend/dist
