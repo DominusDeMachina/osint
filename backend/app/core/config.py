@@ -39,6 +39,7 @@ class Settings(BaseSettings):
     clerk_secret_key: str = ""
     clerk_publishable_key: str = ""
     clerk_webhook_secret: str = ""
+    clerk_issuer: str = ""  # e.g., "https://your-app.clerk.accounts.dev"
 
     # LLM
     openai_api_key: str = ""

@@ -6,6 +6,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.v1.auth import router as auth_router
+from app.api.v1.webhooks.clerk import router as clerk_webhook_router
 from app.core.config import settings
 
 
@@ -47,3 +49,8 @@ async def health_check() -> dict[str, str]:
 async def api_health_check() -> dict[str, str]:
     """API v1 health check endpoint."""
     return {"status": "healthy", "api_version": "v1"}
+
+
+# Include API routers
+app.include_router(auth_router, prefix="/api/v1")
+app.include_router(clerk_webhook_router, prefix="/api/v1")

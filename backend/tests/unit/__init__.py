@@ -1,1 +1,1 @@
-"""Unit tests for backend models and services."""
+"""Unit tests for OSINT backend."""
