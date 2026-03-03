@@ -122,6 +122,11 @@ async def delete_ip_data(
     - The user themselves (self-service deletion)
     - Admin users (support request)
 
+    TODO: Task 16 deferred subtask - Require fresh re-authentication for GDPR deletes.
+    For enhanced security, this endpoint should verify that the auth token was issued
+    within the last 5 minutes (step-up authentication) to protect against stolen tokens.
+    This requires Clerk session metadata integration.
+
     Args:
         user_id: UUID of the user whose IP data should be deleted
         request: FastAPI request object

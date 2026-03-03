@@ -7,7 +7,7 @@ Provides:
 - Tier-based limits (free, pro, business, enterprise)
 - Standard rate limit headers on all responses
 - 429 Too Many Requests with Retry-After header
-- Audit logging for rate limit exceeded events (AC8)
+- Audit logging for rate limit exceeded events (AC8, AC22)
 """
 
 import logging
@@ -17,6 +17,8 @@ from typing import TYPE_CHECKING, Any
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
+
+from app.audit.logger import SimpleAuditLogger
 
 
 if TYPE_CHECKING:
@@ -238,6 +240,17 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         if not allowed:
             # AC8: Log rate limit exceeded event
             logger.warning(f"Rate limit exceeded for user {user_id} (tier: {tier}, limit: {limit})")
+            # AC8: Also log to audit trail for compliance
+            audit_logger = SimpleAuditLogger()
+            await audit_logger.log_event(
+                "rate_limit_exceeded",
+                details={
+                    "user_id": str(user_id),
+                    "tier": tier,
+                    "limit": limit,
+                    "endpoint": request.url.path,
+                },
+            )
             # Return 429 Too Many Requests
             headers = create_rate_limit_headers(
                 limit=limit,
@@ -257,6 +270,19 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             logger.info(
                 f"Rate limit threshold warning: user {user_id} at {usage_percent:.0f}% "
                 f"({limit - remaining - 1}/{limit}) of {tier} tier limit"
+            )
+            # AC22: Also log to audit trail for compliance
+            audit_logger = SimpleAuditLogger()
+            await audit_logger.log_event(
+                "rate_limit_threshold_warning",
+                details={
+                    "user_id": str(user_id),
+                    "tier": tier,
+                    "limit": limit,
+                    "current_usage": limit - remaining - 1,
+                    "usage_percent": round(usage_percent, 1),
+                    "endpoint": request.url.path,
+                },
             )
 
         # Process request

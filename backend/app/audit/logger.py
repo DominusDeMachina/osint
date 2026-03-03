@@ -296,8 +296,23 @@ class AuditLogger:
 class SimpleAuditLogger:
     """Simple audit logger for anti-abuse and GDPR events.
 
-    Logs to Python logger until full audit database integration.
-    Used by webhook handlers and GDPR endpoints.
+    Logs to Python logger for operational monitoring.
+    Used by webhook handlers, GDPR endpoints, and rate limiting middleware.
+
+    IMPORTANT: This logger writes to Python logging only, NOT to the AuditLog
+    database table. For compliance requirements that need queryable audit records,
+    consider enhancing this class to also write to the database.
+
+    Events logged:
+    - Anti-abuse: signup_blocked_*, signup_risk_score_calculated, email_normalization_applied
+    - Webhook security: webhook_signature_invalid, webhook_duplicate_rejected
+    - GDPR: gdpr_ip_data_deleted, gdpr_rate_limited, gdpr_unauthorized_attempt
+    - Rate limiting: rate_limit_exceeded, rate_limit_threshold_warning (AC8, AC22)
+    - Review queue: signup_added_to_review_queue, signup_review_approved, signup_review_rejected
+
+    TODO: For full compliance, extend to write events to AuditLog table with
+    tenant_id derived from user context. This would allow audit queries like
+    "show all blocked signups in last 30 days".
     """
 
     def __init__(self) -> None:
@@ -310,5 +325,9 @@ class SimpleAuditLogger:
         Args:
             event_type: Type of event (e.g., 'signup_blocked_ip_limit')
             details: Event details dict
+
+        Note:
+            Events are logged at INFO level with structured format for
+            easy parsing by log aggregation systems (ELK, Datadog, etc.).
         """
         self._logger.info(f"Audit event: {event_type} - {details}")
