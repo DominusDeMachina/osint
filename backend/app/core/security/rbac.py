@@ -30,7 +30,7 @@ Usage:
 """
 
 from collections.abc import AsyncGenerator
-from typing import TYPE_CHECKING, Annotated
+from typing import TYPE_CHECKING, Annotated, cast
 from uuid import UUID
 
 from fastapi import Depends, HTTPException, Path, Request
@@ -57,7 +57,7 @@ async def get_current_user_for_rbac(request: Request) -> User:
             status_code=401,
             detail="Not authenticated",
         )
-    return user
+    return cast(User, user)
 
 
 async def get_session_for_rbac(
