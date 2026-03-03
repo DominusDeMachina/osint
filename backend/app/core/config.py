@@ -1,8 +1,22 @@
 """Application configuration using Pydantic Settings."""
 
 from functools import lru_cache
+from typing import Annotated
 
+from pydantic import BeforeValidator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+def _parse_comma_separated_set(v: str | set[str]) -> set[str]:
+    """Parse comma-separated string into a set."""
+    if isinstance(v, set):
+        return v
+    if isinstance(v, str):
+        return {d.strip().lower() for d in v.split(",") if d.strip()}
+    return set()
+
+
+CommaSeparatedSet = Annotated[set[str], BeforeValidator(_parse_comma_separated_set)]
 
 
 class Settings(BaseSettings):
@@ -60,6 +74,22 @@ class Settings(BaseSettings):
 
     # Audit
     audit_hmac_secret: str = "change-this-secret-in-production"
+
+    # Anti-abuse settings (AC2, AC7)
+    blocked_email_domains: CommaSeparatedSet = {
+        "gmail.com",
+        "yahoo.com",
+        "hotmail.com",
+        "outlook.com",
+        "protonmail.com",
+        "icloud.com",
+        "mail.com",
+        "aol.com",
+        "yandex.com",
+        "qq.com",
+        "163.com",
+        "live.com",
+    }
 
 
 @lru_cache

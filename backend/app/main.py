@@ -7,8 +7,14 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.auth import router as auth_router
+from app.api.v1.gdpr import admin_router as gdpr_admin_router
+from app.api.v1.gdpr import router as gdpr_router
+from app.api.v1.investigations import permissions_router
+from app.api.v1.investigations import router as investigations_router
 from app.api.v1.webhooks.clerk import router as clerk_webhook_router
 from app.core.config import settings
+from app.core.middleware.rate_limit import RateLimitMiddleware
+from app.core.redis import get_redis_client
 
 
 @asynccontextmanager
@@ -38,6 +44,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Configure Rate Limiting (AC3, AC4, AC5, AC9, AC10)
+# Note: Middleware stack runs in reverse order - last added runs first
+# So RateLimitMiddleware runs after CORS
+app.add_middleware(RateLimitMiddleware, redis=get_redis_client())
+
 
 @app.get("/health", tags=["Health"])
 async def health_check() -> dict[str, str]:
@@ -53,4 +64,8 @@ async def api_health_check() -> dict[str, str]:
 
 # Include API routers
 app.include_router(auth_router, prefix="/api/v1")
+app.include_router(investigations_router, prefix="/api/v1")
+app.include_router(permissions_router, prefix="/api/v1")
 app.include_router(clerk_webhook_router, prefix="/api/v1")
+app.include_router(gdpr_router, prefix="/api/v1")
+app.include_router(gdpr_admin_router, prefix="/api/v1")

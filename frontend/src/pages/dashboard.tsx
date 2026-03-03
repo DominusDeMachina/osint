@@ -29,10 +29,10 @@ export function Dashboard() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b bg-card">
+    <div className="bg-background min-h-screen">
+      <header className="bg-card border-b">
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
-          <h1 className="text-xl font-bold text-foreground">OSINT Platform</h1>
+          <h1 className="text-foreground text-xl font-bold">OSINT Platform</h1>
           <UserButton />
         </div>
       </header>
@@ -40,11 +40,11 @@ export function Dashboard() {
       <main className="container mx-auto py-10">
         <div className="mx-auto max-w-2xl">
           <div className="space-y-6">
-            <div className="rounded-lg border bg-card p-6">
+            <div className="bg-card rounded-lg border p-6">
               <h2 className="mb-4 text-xl font-semibold">System Status</h2>
 
               {error && (
-                <div className="mb-4 rounded-md bg-destructive/10 p-4 text-destructive">
+                <div className="bg-destructive/10 text-destructive mb-4 rounded-md p-4">
                   {error}
                 </div>
               )}
@@ -73,13 +73,13 @@ export function Dashboard() {
               </div>
             </div>
 
-            <div className="rounded-lg border bg-card p-6">
+            <div className="bg-card rounded-lg border p-6">
               <h2 className="mb-4 text-xl font-semibold">Getting Started</h2>
               <p className="text-muted-foreground">
                 Welcome to the OSINT Platform. This is the initial setup of the monorepo structure.
                 Additional features will be implemented in subsequent stories.
               </p>
-              <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
+              <ul className="text-muted-foreground mt-4 space-y-2 text-sm">
                 <li>• Backend: FastAPI with Python 3.12</li>
                 <li>• Graph Engine: Rust with PyO3 bindings</li>
                 <li>• Frontend: React + TypeScript + Vite</li>
