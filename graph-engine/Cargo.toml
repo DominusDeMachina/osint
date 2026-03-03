@@ -13,27 +13,27 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 # Python bindings
-pyo3 = { version = "0.28", features = ["extension-module"] }
+pyo3 = { version = "0.28.2", features = ["extension-module"] }
 
 # Graph processing
-petgraph = "0.8"
+petgraph = "0.8.3"
 
 # Serialization
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.149"
 
 # UUID handling
-uuid = { version = "1.0", features = ["v4", "serde"] }
+uuid = { version = "1.21.0", features = ["v4", "serde"] }
 
 # Error handling
-thiserror = "2.0"
+thiserror = "2.0.18"
 
 # Logging
-log = "0.4"
+log = "0.4.29"
 
 [dev-dependencies]
 # Testing utilities
-pretty_assertions = "1.4"
+pretty_assertions = "1.4.1"
 
 [profile.release]
 lto = true
