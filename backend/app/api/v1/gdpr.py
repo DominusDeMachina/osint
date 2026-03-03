@@ -148,12 +148,15 @@ async def delete_ip_data(
     is_admin = any(m.role == UserRole.admin for m in getattr(current_user, "memberships", []))
 
     if not is_self_request and not is_admin:
+        # Get highest role from memberships for logging
+        memberships = getattr(current_user, "memberships", [])
+        roles = [m.role.value for m in memberships] if memberships else ["none"]
         await audit_logger.log_event(
             "gdpr_unauthorized_attempt",
             details={
                 "user_id": str(user_id),
                 "requester_id": str(current_user.id),
-                "requester_role": str(getattr(current_user, "global_role", "unknown")),
+                "requester_roles": roles,
             },
         )
         raise HTTPException(

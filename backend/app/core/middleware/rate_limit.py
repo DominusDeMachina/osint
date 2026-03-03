@@ -191,6 +191,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         """
         super().__init__(app)
         self.rate_limiter = SlidingWindowRateLimiter(redis)
+        # AC8, AC22: Reuse single audit logger instance for all requests
+        self._audit_logger = SimpleAuditLogger()
 
     async def dispatch(
         self,
@@ -241,8 +243,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             # AC8: Log rate limit exceeded event
             logger.warning(f"Rate limit exceeded for user {user_id} (tier: {tier}, limit: {limit})")
             # AC8: Also log to audit trail for compliance
-            audit_logger = SimpleAuditLogger()
-            await audit_logger.log_event(
+            await self._audit_logger.log_event(
                 "rate_limit_exceeded",
                 details={
                     "user_id": str(user_id),
@@ -272,8 +273,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 f"({limit - remaining - 1}/{limit}) of {tier} tier limit"
             )
             # AC22: Also log to audit trail for compliance
-            audit_logger = SimpleAuditLogger()
-            await audit_logger.log_event(
+            await self._audit_logger.log_event(
                 "rate_limit_threshold_warning",
                 details={
                     "user_id": str(user_id),
