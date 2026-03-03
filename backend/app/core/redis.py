@@ -21,6 +21,22 @@ async def get_redis() -> Redis:
     return redis_client
 
 
+def get_redis_client() -> Redis:
+    """Get Redis client for middleware (lazy sync initialization).
+
+    Returns an already-connected Redis client or creates one.
+    Used by middleware that needs sync initialization.
+    """
+    global redis_client  # noqa: PLW0603
+    if redis_client is None:
+        redis_client = Redis.from_url(
+            settings.redis_url,
+            encoding="utf-8",
+            decode_responses=True,
+        )
+    return redis_client
+
+
 async def close_redis() -> None:
     """Close Redis connection."""
     global redis_client  # noqa: PLW0603
