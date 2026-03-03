@@ -14,6 +14,7 @@ Event types (per Dev Notes):
 - owner_self_revoke_blocked: Owner tried to revoke own ownership without transfer
 """
 
+import logging
 from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
@@ -290,3 +291,24 @@ class AuditLogger:
 
         self.session.add(audit_log)
         # Note: Caller should commit the session
+
+
+class SimpleAuditLogger:
+    """Simple audit logger for anti-abuse and GDPR events.
+
+    Logs to Python logger until full audit database integration.
+    Used by webhook handlers and GDPR endpoints.
+    """
+
+    def __init__(self) -> None:
+        """Initialize simple audit logger."""
+        self._logger = logging.getLogger("app.audit.simple")
+
+    async def log_event(self, event_type: str, details: dict[str, Any]) -> None:
+        """Log an audit event to Python logger.
+
+        Args:
+            event_type: Type of event (e.g., 'signup_blocked_ip_limit')
+            details: Event details dict
+        """
+        self._logger.info(f"Audit event: {event_type} - {details}")

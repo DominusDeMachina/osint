@@ -22,6 +22,7 @@ from pydantic import BaseModel
 from sqlmodel import select
 from svix.webhooks import Webhook, WebhookVerificationError
 
+from app.audit.logger import SimpleAuditLogger
 from app.core.config import settings
 from app.core.database import async_session_maker
 from app.core.redis import get_redis
@@ -39,18 +40,6 @@ from app.services.anti_abuse import (
 
 
 logger = logging.getLogger(__name__)
-
-
-class SimpleAuditLogger:
-    """Simple audit logger for anti-abuse events.
-
-    Logs to standard logger until full audit integration.
-    """
-
-    async def log_event(self, event_type: str, details: dict[str, Any]) -> None:
-        """Log an audit event."""
-        logger.info(f"Audit event: {event_type} - {details}")
-
 
 router = APIRouter(prefix="/webhooks", tags=["Webhooks"])
 
@@ -413,12 +402,15 @@ async def handle_user_created(  # noqa: PLR0912, PLR0915
             return {"status": "ok", "message": "User already exists"}
 
         # Create user (AC12: HIGH risk users are inactive until verified)
+        # AC21/HIGH-2 fix: Store signup_ip_hash for GDPR compliance
+        ip_hash = risk_details.get("ip_hash")
         user = User(
             clerk_id=clerk_id,
             email=email,
             name=name,
             avatar_url=image_url,
             is_active=not requires_verification,  # False for HIGH risk
+            signup_ip_hash=ip_hash,  # For GDPR IP data deletion
         )
         session.add(user)
         await session.flush()  # Get user.id

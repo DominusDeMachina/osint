@@ -1127,3 +1127,48 @@ class SignupReviewQueue:
             Number of pending reviews
         """
         return await self.redis.llen(self.QUEUE_KEY)
+
+    async def get_items(self, limit: int = 50) -> list[dict[str, Any]]:
+        """Get items from the review queue.
+
+        Args:
+            limit: Maximum number of items to return
+
+        Returns:
+            List of review items as dictionaries
+        """
+        raw_items = await self.redis.lrange(self.QUEUE_KEY, 0, limit - 1)
+
+        items: list[dict[str, Any]] = []
+        for raw_item in raw_items:
+            try:
+                # Handle both str and bytes from Redis
+                decoded = raw_item.decode() if isinstance(raw_item, bytes) else raw_item
+                items.append(json.loads(decoded))
+            except (json.JSONDecodeError, UnicodeDecodeError):
+                continue
+
+        return items
+
+    async def remove_item(self, clerk_id: str) -> dict[str, Any] | None:
+        """Remove an item from the review queue by clerk_id.
+
+        Args:
+            clerk_id: Clerk user ID to remove
+
+        Returns:
+            The removed item if found, None otherwise
+        """
+        raw_items = await self.redis.lrange(self.QUEUE_KEY, 0, -1)
+
+        for raw_item in raw_items:
+            try:
+                decoded = raw_item.decode() if isinstance(raw_item, bytes) else raw_item
+                item: dict[str, Any] = json.loads(decoded)
+                if item.get("clerk_id") == clerk_id:
+                    await self.redis.lrem(self.QUEUE_KEY, 1, decoded)
+                    return item
+            except (json.JSONDecodeError, UnicodeDecodeError):
+                continue
+
+        return None

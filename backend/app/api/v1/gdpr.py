@@ -9,19 +9,21 @@ Provides:
 """
 
 import hashlib
-import json
 import logging
 from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
+from sqlalchemy import update
 from sqlmodel import select
 
+from app.audit.logger import SimpleAuditLogger
 from app.core.database import async_session_maker
 from app.core.redis import get_redis
+from app.models.audit import AuditLog
 from app.models.user import User, UserRole
-from app.services.anti_abuse import GDPRRateLimiter, ServerSideTiming
+from app.services.anti_abuse import GDPRRateLimiter, ServerSideTiming, SignupReviewQueue
 
 
 logger = logging.getLogger(__name__)
@@ -67,14 +69,6 @@ async def require_authenticated_user(request: Request) -> User:
             detail="Authentication required",
         )
     return user
-
-
-class SimpleAuditLogger:
-    """Simple audit logger for GDPR events."""
-
-    async def log_event(self, event_type: str, details: dict[str, Any]) -> None:
-        """Log an audit event."""
-        logger.info(f"Audit event: {event_type} - {details}")
 
 
 def _get_client_ip(request: Request) -> str:
@@ -195,9 +189,9 @@ async def delete_ip_data(
             raise HTTPException(status_code=404, detail="User not found")
 
         # Delete IP data from Redis if signup_ip_hash is stored
-        # Note: User model needs signup_ip_hash field for full implementation
-        signup_ip_hash = getattr(target_user, "signup_ip_hash", None)
+        signup_ip_hash = target_user.signup_ip_hash
         ip_data_deleted = False
+        audit_logs_anonymized = 0
 
         if signup_ip_hash:
             # Delete the IP account counter from Redis
@@ -205,8 +199,20 @@ async def delete_ip_data(
             await redis.delete(ip_key)
             ip_data_deleted = True
 
+            # HIGH-1 fix: Anonymize IP addresses in audit logs (GDPR compliance)
+            # We anonymize rather than delete to preserve audit trail integrity
+            # Set ip_address to "[GDPR_DELETED]" for all logs with this IP hash
+            update_stmt = (
+                update(AuditLog)
+                .where(AuditLog.actor_id == user_id)  # type: ignore[arg-type]
+                .where(AuditLog.ip_address.isnot(None))  # type: ignore[union-attr]
+                .values(ip_address="[GDPR_DELETED]")
+            )
+            update_result = await session.execute(update_stmt)
+            audit_logs_anonymized = getattr(update_result, "rowcount", 0) or 0
+
             # Clear the hash from user record
-            target_user.signup_ip_hash = None  # type: ignore[attr-defined]
+            target_user.signup_ip_hash = None
             await session.commit()
 
         await audit_logger.log_event(
@@ -216,13 +222,14 @@ async def delete_ip_data(
                 "requester_id": str(current_user.id),
                 "is_admin_request": is_admin,
                 "ip_data_found": ip_data_deleted,
+                "audit_logs_anonymized": audit_logs_anonymized,
                 "requested_by_ip_hash": _hash_ip_for_log(client_ip),
             },
         )
 
         logger.info(
             f"GDPR IP data deletion completed for user {user_id} "
-            f"(ip_data_deleted={ip_data_deleted})"
+            f"(ip_data_deleted={ip_data_deleted}, audit_logs_anonymized={audit_logs_anonymized})"
         )
 
     # Record this deletion for rate limiting
@@ -290,9 +297,6 @@ async def require_admin_user(request: Request) -> User:
     return user
 
 
-# Redis key for the review queue
-REVIEW_QUEUE_KEY = "signup:review_queue"
-
 # Type alias for admin user dependency
 AdminUser = Annotated[User, Depends(require_admin_user)]
 
@@ -314,21 +318,10 @@ async def get_review_queue(
         List of pending signups awaiting review
     """
     redis = await get_redis()
+    review_queue = SignupReviewQueue(redis)
 
-    # Get items from the review queue (Redis list)
-    raw_items = await redis.lrange(REVIEW_QUEUE_KEY, 0, limit - 1)
-
-    items = []
-    for raw_item in raw_items:
-        try:
-            # Handle both str and bytes from Redis
-            decoded = raw_item.decode() if isinstance(raw_item, bytes) else raw_item
-            items.append(json.loads(decoded))
-        except (json.JSONDecodeError, UnicodeDecodeError):
-            logger.warning(f"Invalid item in review queue: {raw_item}")
-            continue
-
-    queue_length = await redis.llen(REVIEW_QUEUE_KEY)
+    items = await review_queue.get_items(limit=limit)
+    queue_length = await review_queue.get_queue_length()
 
     return {
         "items": items,
@@ -355,46 +348,34 @@ async def approve_signup(
     """
     audit_logger = SimpleAuditLogger()
     redis = await get_redis()
+    review_queue = SignupReviewQueue(redis)
 
     # Find and remove the item from the queue
-    raw_items = await redis.lrange(REVIEW_QUEUE_KEY, 0, -1)
-    found = False
+    item = await review_queue.remove_item(clerk_id)
 
-    for raw_item in raw_items:
-        try:
-            decoded = raw_item.decode() if isinstance(raw_item, bytes) else raw_item
-            item = json.loads(decoded)
-            if item.get("clerk_id") == clerk_id:
-                # Remove this item from the queue
-                await redis.lrem(REVIEW_QUEUE_KEY, 1, decoded)
-                found = True
-
-                # Activate the user if needed
-                async with async_session_maker() as session:
-                    result = await session.execute(select(User).where(User.clerk_id == clerk_id))
-                    user = result.scalar_one_or_none()
-                    if user and not user.is_active:
-                        user.is_active = True
-                        await session.commit()
-                        logger.info(f"Activated user {user.id} after manual review")
-
-                await audit_logger.log_event(
-                    "signup_review_approved",
-                    details={
-                        "clerk_id": clerk_id,
-                        "approved_by": str(current_user.id),
-                        "original_reason": item.get("reason"),
-                    },
-                )
-                break
-        except (json.JSONDecodeError, UnicodeDecodeError):
-            continue
-
-    if not found:
+    if not item:
         raise HTTPException(
             status_code=404,
             detail=f"Signup with clerk_id {clerk_id} not found in review queue",
         )
+
+    # Activate the user if needed
+    async with async_session_maker() as session:
+        result = await session.execute(select(User).where(User.clerk_id == clerk_id))
+        user = result.scalar_one_or_none()
+        if user and not user.is_active:
+            user.is_active = True
+            await session.commit()
+            logger.info(f"Activated user {user.id} after manual review")
+
+    await audit_logger.log_event(
+        "signup_review_approved",
+        details={
+            "clerk_id": clerk_id,
+            "approved_by": str(current_user.id),
+            "original_reason": item.get("reason"),
+        },
+    )
 
     return {"status": "approved", "clerk_id": clerk_id}
 
@@ -419,46 +400,34 @@ async def reject_signup(
     """
     audit_logger = SimpleAuditLogger()
     redis = await get_redis()
+    review_queue = SignupReviewQueue(redis)
 
     # Find and remove the item from the queue
-    raw_items = await redis.lrange(REVIEW_QUEUE_KEY, 0, -1)
-    found = False
+    item = await review_queue.remove_item(clerk_id)
 
-    for raw_item in raw_items:
-        try:
-            decoded = raw_item.decode() if isinstance(raw_item, bytes) else raw_item
-            item = json.loads(decoded)
-            if item.get("clerk_id") == clerk_id:
-                # Remove this item from the queue
-                await redis.lrem(REVIEW_QUEUE_KEY, 1, decoded)
-                found = True
-
-                # Deactivate the user
-                async with async_session_maker() as session:
-                    result = await session.execute(select(User).where(User.clerk_id == clerk_id))
-                    user = result.scalar_one_or_none()
-                    if user:
-                        user.is_active = False
-                        await session.commit()
-                        logger.info(f"Deactivated user {user.id} after manual rejection")
-
-                await audit_logger.log_event(
-                    "signup_review_rejected",
-                    details={
-                        "clerk_id": clerk_id,
-                        "rejected_by": str(current_user.id),
-                        "rejection_reason": reason,
-                        "original_reason": item.get("reason"),
-                    },
-                )
-                break
-        except (json.JSONDecodeError, UnicodeDecodeError):
-            continue
-
-    if not found:
+    if not item:
         raise HTTPException(
             status_code=404,
             detail=f"Signup with clerk_id {clerk_id} not found in review queue",
         )
+
+    # Deactivate the user
+    async with async_session_maker() as session:
+        result = await session.execute(select(User).where(User.clerk_id == clerk_id))
+        user = result.scalar_one_or_none()
+        if user:
+            user.is_active = False
+            await session.commit()
+            logger.info(f"Deactivated user {user.id} after manual rejection")
+
+    await audit_logger.log_event(
+        "signup_review_rejected",
+        details={
+            "clerk_id": clerk_id,
+            "rejected_by": str(current_user.id),
+            "rejection_reason": reason,
+            "original_reason": item.get("reason"),
+        },
+    )
 
     return {"status": "rejected", "clerk_id": clerk_id, "reason": reason}

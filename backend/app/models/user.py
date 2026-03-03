@@ -55,6 +55,9 @@ class User(TimestampMixin, table=True):
     name: str | None = Field(default=None, max_length=255)
     avatar_url: str | None = Field(default=None, max_length=500)
     is_active: bool = Field(default=True)
+    # Story 1.5: Signup IP hash for GDPR compliance (AC21)
+    # Stores SHA256[:16] of signup IP for later deletion requests
+    signup_ip_hash: str | None = Field(default=None, max_length=16, index=True)
 
     # Relationships
     memberships: list["TenantMembership"] = Relationship(back_populates="user")
