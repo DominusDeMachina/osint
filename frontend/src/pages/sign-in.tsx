@@ -2,7 +2,7 @@ import { SignIn } from '@clerk/clerk-react'
 
 export function SignInPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
+    <div className="bg-background flex min-h-screen items-center justify-center">
       <div className="w-full max-w-md">
         <SignIn
           path="/sign-in"
