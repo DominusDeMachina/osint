@@ -23,6 +23,7 @@ dependencies = [
     "python-jose>=3.5.0",
     "cryptography>=46.0.5",
     "svix>=1.86.0",
+    "tldextract>=5.1.0",  # AC24: Root domain extraction using Public Suffix List
 ]
 
 [project.optional-dependencies]
