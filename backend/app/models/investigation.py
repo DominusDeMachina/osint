@@ -17,6 +17,7 @@ from app.models.base import TenantModel
 if TYPE_CHECKING:
     from app.models.entity import InvestigationEntity
     from app.models.hypothesis import Hypothesis
+    from app.models.permission import InvestigationPermission
 
 
 class InvestigationStatus(StrEnum):
@@ -61,3 +62,4 @@ class Investigation(TenantModel, table=True):
         back_populates="investigation"
     )
     hypotheses: list["Hypothesis"] = Relationship(back_populates="investigation")
+    permissions: list["InvestigationPermission"] = Relationship(back_populates="investigation")

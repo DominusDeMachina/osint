@@ -7,6 +7,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.auth import router as auth_router
+from app.api.v1.investigations import permissions_router
+from app.api.v1.investigations import router as investigations_router
 from app.api.v1.webhooks.clerk import router as clerk_webhook_router
 from app.core.config import settings
 
@@ -53,4 +55,6 @@ async def api_health_check() -> dict[str, str]:
 
 # Include API routers
 app.include_router(auth_router, prefix="/api/v1")
+app.include_router(investigations_router, prefix="/api/v1")
+app.include_router(permissions_router, prefix="/api/v1")
 app.include_router(clerk_webhook_router, prefix="/api/v1")

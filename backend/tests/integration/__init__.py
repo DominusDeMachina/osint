@@ -1,1 +1,1 @@
-"""Integration tests for OSINT backend."""
+"""Integration tests package."""
